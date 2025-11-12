@@ -9,6 +9,38 @@ export interface ParsedMessage {
 const MESSAGE_REGEX = /^(\d{1,2}\/\d{1,2}\/\d{4}),\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*([^:]+?):\s*(.+)$/im;
 const SYSTEM_MESSAGE_REGEX = /^(\d{1,2}\/\d{1,2}\/\d{4}),\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*(.+)$/im;
 
+function shouldExcludeMessage(text: string): boolean {
+  const lower = text.toLowerCase();
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  const hasUrl = urlRegex.test(text);
+
+  // System or meta messages
+  const systemPatterns = [
+    "joined using a group link",
+    "joined using this group's invite link",
+    "left",
+    "added",
+    "removed",
+    "changed this group's icon",
+    "changed the subject",
+    "this message was deleted",
+    "you deleted this message",
+    "<media omitted>",
+    "<attached:"
+  ];
+
+  // Exclude system messages
+  if (systemPatterns.some(p => lower.includes(p))) return true;
+
+  // Exclude pure URLs (no other text)
+  if (hasUrl && text.trim().replace(urlRegex, "").trim().length === 0) return true;
+
+  // Exclude empty or whitespace-only
+  if (!text.trim()) return true;
+
+  return false;
+}
+
 export function parseWhatsAppChat(content: string): ParsedMessage[] {
   const messages: ParsedMessage[] = [];
   const lines = content.split('\n');
@@ -68,7 +100,8 @@ export function parseWhatsAppChat(content: string): ParsedMessage[] {
     messages.push(currentMessage);
   }
   
-  return messages;
+  // Filter out excluded messages
+  return messages.filter(msg => !shouldExcludeMessage(msg.message));
 }
 
 export function sanitizeFilename(text: string, maxLength: number = 15): string {
