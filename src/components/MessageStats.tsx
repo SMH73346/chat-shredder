@@ -5,11 +5,22 @@ interface MessageStatsProps {
   totalMessages: number;
   uniqueSenders: number;
   topSenders: Array<{ sender: string; count: number }>;
+  excludedCount?: number;
 }
 
-export function MessageStats({ totalMessages, uniqueSenders, topSenders }: MessageStatsProps) {
+export function MessageStats({ totalMessages, uniqueSenders, topSenders, excludedCount = 0 }: MessageStatsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+    <>
+      {excludedCount > 0 && (
+        <div className="mt-8 p-4 bg-muted/50 rounded-lg border border-border">
+          <p className="text-sm text-center">
+            <span className="text-primary font-semibold">✅ {totalMessages} messages kept</span>
+            {' · '}
+            <span className="text-muted-foreground">❌ {excludedCount} excluded</span>
+          </p>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
       <Card className="p-6">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-whatsapp-light flex items-center justify-center">
@@ -51,5 +62,6 @@ export function MessageStats({ totalMessages, uniqueSenders, topSenders }: Messa
         </div>
       </Card>
     </div>
+    </>
   );
 }

@@ -11,6 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 const Index = () => {
   const [messages, setMessages] = useState<ParsedMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [excludedSenders, setExcludedSenders] = useState('');
+  const [excludedTexts, setExcludedTexts] = useState('');
+  const [totalParsed, setTotalParsed] = useState(0);
   const { toast } = useToast();
 
   const handleFileSelect = async (file: File) => {
@@ -24,7 +27,23 @@ const Index = () => {
       });
 
       const content = await processUploadedFile(file);
-      const parsedMessages = parseWhatsAppChat(content);
+      
+      // Parse exclusion lists
+      const sendersList = excludedSenders
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      const textsList = excludedTexts
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+      
+      // First parse without filters to get total count
+      const allMessages = parseWhatsAppChat(content);
+      setTotalParsed(allMessages.length);
+      
+      // Then parse with filters
+      const parsedMessages = parseWhatsAppChat(content, sendersList, textsList);
 
       if (parsedMessages.length === 0) {
         toast({
@@ -73,7 +92,7 @@ const Index = () => {
     }
   };
 
-  const stats = messages.length > 0 ? getMessageStats(messages) : null;
+  const stats = messages.length > 0 ? getMessageStats(messages, totalParsed) : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -89,6 +108,39 @@ const Index = () => {
           </p>
         </div>
 
+        <div className="mb-8 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="excludedSenders" className="block text-sm font-medium mb-2">
+                Exclude messages from senders (comma-separated)
+              </label>
+              <input
+                id="excludedSenders"
+                type="text"
+                value={excludedSenders}
+                onChange={(e) => setExcludedSenders(e.target.value)}
+                placeholder="e.g., +92 325 9011765, System"
+                className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={isProcessing}
+              />
+            </div>
+            <div>
+              <label htmlFor="excludedTexts" className="block text-sm font-medium mb-2">
+                Exclude messages containing (comma-separated)
+              </label>
+              <input
+                id="excludedTexts"
+                type="text"
+                value={excludedTexts}
+                onChange={(e) => setExcludedTexts(e.target.value)}
+                placeholder="e.g., joined using a group link, media omitted"
+                className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={isProcessing}
+              />
+            </div>
+          </div>
+        </div>
+
         <FileUpload onFileSelect={handleFileSelect} isProcessing={isProcessing} />
 
         {stats && (
@@ -96,6 +148,7 @@ const Index = () => {
             totalMessages={stats.totalMessages}
             uniqueSenders={stats.uniqueSenders}
             topSenders={stats.topSenders}
+            excludedCount={stats.excludedCount}
           />
         )}
 

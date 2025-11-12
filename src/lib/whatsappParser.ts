@@ -9,10 +9,23 @@ export interface ParsedMessage {
 const MESSAGE_REGEX = /^(\d{1,2}\/\d{1,2}\/\d{4}),\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*([^:]+?):\s*(.+)$/im;
 const SYSTEM_MESSAGE_REGEX = /^(\d{1,2}\/\d{1,2}\/\d{4}),\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*(.+)$/im;
 
-function shouldExcludeMessage(text: string): boolean {
-  const lower = text.toLowerCase();
+function shouldExcludeMessage(
+  message: ParsedMessage,
+  excludedSenders: string[] = [],
+  excludedTexts: string[] = []
+): boolean {
+  const sender = message.sender?.toLowerCase() || "";
+  const text = message.message?.toLowerCase() || "";
   const urlRegex = /(https?:\/\/[^\s]+)/gi;
-  const hasUrl = urlRegex.test(text);
+  const hasUrl = urlRegex.test(message.message);
+
+  // Automatically skip "System" sender
+  if (sender === "system") return true;
+
+  // Exclude messages from user-specified senders
+  if (excludedSenders.length > 0 && excludedSenders.some(s => sender.includes(s.toLowerCase()))) {
+    return true;
+  }
 
   // System or meta messages
   const systemPatterns = [
@@ -30,18 +43,27 @@ function shouldExcludeMessage(text: string): boolean {
   ];
 
   // Exclude system messages
-  if (systemPatterns.some(p => lower.includes(p))) return true;
+  if (systemPatterns.some(p => text.includes(p))) return true;
+
+  // Exclude messages containing user-specified keywords/phrases
+  if (excludedTexts.length > 0 && excludedTexts.some(t => text.includes(t.toLowerCase()))) {
+    return true;
+  }
 
   // Exclude pure URLs (no other text)
-  if (hasUrl && text.trim().replace(urlRegex, "").trim().length === 0) return true;
+  if (hasUrl && message.message.trim().replace(urlRegex, "").trim().length === 0) return true;
 
   // Exclude empty or whitespace-only
-  if (!text.trim()) return true;
+  if (!message.message.trim()) return true;
 
   return false;
 }
 
-export function parseWhatsAppChat(content: string): ParsedMessage[] {
+export function parseWhatsAppChat(
+  content: string,
+  excludedSenders: string[] = [],
+  excludedTexts: string[] = []
+): ParsedMessage[] {
   const messages: ParsedMessage[] = [];
   const lines = content.split('\n');
   
@@ -101,7 +123,7 @@ export function parseWhatsAppChat(content: string): ParsedMessage[] {
   }
   
   // Filter out excluded messages
-  return messages.filter(msg => !shouldExcludeMessage(msg.message));
+  return messages.filter(msg => !shouldExcludeMessage(msg, excludedSenders, excludedTexts));
 }
 
 export function sanitizeFilename(text: string, maxLength: number = 15): string {
@@ -117,7 +139,7 @@ export function sanitizeFilename(text: string, maxLength: number = 15): string {
   return sanitized || 'message';
 }
 
-export function getMessageStats(messages: ParsedMessage[]) {
+export function getMessageStats(messages: ParsedMessage[], totalParsed: number = 0) {
   const senderCounts: Record<string, number> = {};
   
   messages.forEach(msg => {
@@ -132,6 +154,7 @@ export function getMessageStats(messages: ParsedMessage[]) {
   return {
     totalMessages: messages.length,
     uniqueSenders: Object.keys(senderCounts).length,
-    topSenders
+    topSenders,
+    excludedCount: totalParsed > 0 ? totalParsed - messages.length : 0
   };
 }
