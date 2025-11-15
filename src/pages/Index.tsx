@@ -14,6 +14,7 @@ const Index = () => {
   const [excludedSenders, setExcludedSenders] = useState('');
   const [excludedTexts, setExcludedTexts] = useState('');
   const [totalParsed, setTotalParsed] = useState(0);
+  const [mediaFiles, setMediaFiles] = useState<Map<string, Blob>>(new Map());
   const { toast } = useToast();
 
   const handleFileSelect = async (file: File) => {
@@ -26,7 +27,7 @@ const Index = () => {
         description: 'Parsing your WhatsApp chat export',
       });
 
-      const content = await processUploadedFile(file);
+      const { chatContent, mediaFiles: extractedMedia } = await processUploadedFile(file);
       
       // Parse exclusion lists
       const sendersList = excludedSenders
@@ -39,11 +40,11 @@ const Index = () => {
         .filter(t => t.length > 0);
       
       // First parse without filters to get total count
-      const allMessages = parseWhatsAppChat(content);
+      const allMessages = parseWhatsAppChat(chatContent);
       setTotalParsed(allMessages.length);
       
       // Then parse with filters
-      const parsedMessages = parseWhatsAppChat(content, sendersList, textsList);
+      const parsedMessages = parseWhatsAppChat(chatContent, sendersList, textsList);
 
       if (parsedMessages.length === 0) {
         toast({
@@ -55,9 +56,13 @@ const Index = () => {
       }
 
       setMessages(parsedMessages);
+      setMediaFiles(extractedMedia);
+      
+      const mediaCount = parsedMessages.reduce((acc, msg) => acc + (msg.mediaFiles?.length || 0), 0);
+      
       toast({
         title: 'Success!',
-        description: `Parsed ${parsedMessages.length} messages successfully`,
+        description: `Parsed ${parsedMessages.length} messages with ${mediaCount} media files`,
       });
     } catch (error) {
       toast({
@@ -74,14 +79,14 @@ const Index = () => {
     try {
       toast({
         title: 'Exporting...',
-        description: 'Creating your download package',
+        description: 'Creating your download package with media files',
       });
 
-      await exportMessages(messages, format);
+      await exportMessages(messages, format, mediaFiles);
 
       toast({
         title: 'Export complete!',
-        description: 'Your messages have been downloaded',
+        description: 'Your messages and media have been downloaded',
       });
     } catch (error) {
       toast({

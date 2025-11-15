@@ -4,10 +4,34 @@ export interface ParsedMessage {
   sender: string;
   message: string;
   timestamp: number;
+  mediaFiles?: string[]; // Array of media filenames referenced in this message
 }
 
 const MESSAGE_REGEX = /^(\d{1,2}\/\d{1,2}\/\d{4}),\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*([^:]+?):\s*(.+)$/im;
 const SYSTEM_MESSAGE_REGEX = /^(\d{1,2}\/\d{1,2}\/\d{4}),\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*-\s*(.+)$/im;
+
+// Regex patterns to detect media file references in WhatsApp messages
+const MEDIA_PATTERNS = [
+  /IMG-\d{8}-WA\d{4}\.(jpg|jpeg|png|gif|webp)/gi,
+  /VID-\d{8}-WA\d{4}\.(mp4|3gp|avi|mov)/gi,
+  /AUD-\d{8}-WA\d{4}\.(opus|mp3|m4a|aac|ogg)/gi,
+  /PTT-\d{8}-WA\d{4}\.(opus|mp3|m4a|aac)/gi,
+  /STK-\d{8}-WA\d{4}\.(webp|png)/gi, // Stickers
+  /DOC-\d{8}-WA\d{4}\.(pdf|docx|xlsx|txt|zip)/gi, // Documents
+];
+
+function extractMediaFiles(messageText: string): string[] {
+  const mediaFiles: string[] = [];
+  
+  MEDIA_PATTERNS.forEach(pattern => {
+    const matches = messageText.matchAll(pattern);
+    for (const match of matches) {
+      mediaFiles.push(match[0]);
+    }
+  });
+  
+  return mediaFiles;
+}
 
 function shouldExcludeMessage(
   message: ParsedMessage,
@@ -82,12 +106,14 @@ export function parseWhatsAppChat(
       }
       
       const [, date, time, sender, message] = userMatch;
+      const mediaFiles = extractMediaFiles(message);
       currentMessage = {
         date: date.trim(),
         time: time.trim(),
         sender: sender.trim(),
         message: message.trim(),
-        timestamp: Date.now() + messages.length
+        timestamp: Date.now() + messages.length,
+        mediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined
       };
       continue;
     }
@@ -101,12 +127,14 @@ export function parseWhatsAppChat(
       }
       
       const [, date, time, message] = systemMatch;
+      const mediaFiles = extractMediaFiles(message);
       currentMessage = {
         date: date.trim(),
         time: time.trim(),
         sender: 'System',
         message: message.trim(),
-        timestamp: Date.now() + messages.length
+        timestamp: Date.now() + messages.length,
+        mediaFiles: mediaFiles.length > 0 ? mediaFiles : undefined
       };
       continue;
     }
@@ -114,6 +142,14 @@ export function parseWhatsAppChat(
     // If no match, append to current message (multi-line message)
     if (currentMessage) {
       currentMessage.message += '\n' + trimmedLine;
+      // Check for media files in continued lines too
+      const additionalMedia = extractMediaFiles(trimmedLine);
+      if (additionalMedia.length > 0) {
+        currentMessage.mediaFiles = [
+          ...(currentMessage.mediaFiles || []),
+          ...additionalMedia
+        ];
+      }
     }
   }
   
