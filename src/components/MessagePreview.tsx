@@ -2,12 +2,66 @@ import { ParsedMessage } from '@/lib/whatsappParser';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useEffect, useState } from 'react';
+import { FileImage, FileVideo, FileAudio, FileText } from 'lucide-react';
 
 interface MessagePreviewProps {
   messages: ParsedMessage[];
+  mediaFiles: Map<string, Blob>;
 }
 
-export function MessagePreview({ messages }: MessagePreviewProps) {
+interface MediaPreviewProps {
+  filename: string;
+  blob: Blob;
+}
+
+function MediaPreview({ filename, blob }: MediaPreviewProps) {
+  const [objectUrl, setObjectUrl] = useState<string>('');
+  const fileType = blob.type.split('/')[0];
+
+  useEffect(() => {
+    const url = URL.createObjectURL(blob);
+    setObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
+
+  if (fileType === 'image') {
+    return (
+      <img 
+        src={objectUrl} 
+        alt={filename}
+        className="w-16 h-16 object-cover rounded border border-border"
+      />
+    );
+  }
+
+  if (fileType === 'video') {
+    return (
+      <video 
+        src={objectUrl}
+        className="w-16 h-16 object-cover rounded border border-border"
+        muted
+        preload="metadata"
+      />
+    );
+  }
+
+  if (fileType === 'audio') {
+    return (
+      <div className="w-16 h-16 flex items-center justify-center rounded border border-border bg-muted">
+        <FileAudio className="w-6 h-6 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-16 h-16 flex items-center justify-center rounded border border-border bg-muted">
+      <FileText className="w-6 h-6 text-muted-foreground" />
+    </div>
+  );
+}
+
+export function MessagePreview({ messages, mediaFiles }: MessagePreviewProps) {
   if (messages.length === 0) return null;
 
   return (
@@ -34,11 +88,20 @@ export function MessagePreview({ messages }: MessagePreviewProps) {
                   <TableCell className="font-medium">{msg.date}</TableCell>
                   <TableCell>{msg.time}</TableCell>
                   <TableCell className="font-semibold">{msg.sender}</TableCell>
-                  <TableCell className="max-w-md">
-                    <div className="truncate">{msg.message}</div>
+                  <TableCell>
+                    <div className="truncate max-w-md">{msg.message}</div>
                     {msg.mediaFiles && msg.mediaFiles.length > 0 && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        📎 {msg.mediaFiles.length} media file{msg.mediaFiles.length > 1 ? 's' : ''}
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {msg.mediaFiles.map((filename, idx) => {
+                          const blob = mediaFiles.get(filename);
+                          return blob ? (
+                            <MediaPreview key={idx} filename={filename} blob={blob} />
+                          ) : (
+                            <div key={idx} className="w-16 h-16 flex items-center justify-center rounded border border-border bg-muted">
+                              <FileImage className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </TableCell>
