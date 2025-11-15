@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Info } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
 import { MessagePreview } from '@/components/MessagePreview';
 import { MessageStats } from '@/components/MessageStats';
@@ -7,6 +7,15 @@ import { ExportControls } from '@/components/ExportControls';
 import { processUploadedFile, exportMessages } from '@/lib/fileProcessor';
 import { parseWhatsAppChat, getMessageStats, ParsedMessage } from '@/lib/whatsappParser';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const Index = () => {
   const [messages, setMessages] = useState<ParsedMessage[]>([]);
@@ -15,6 +24,7 @@ const Index = () => {
   const [excludedTexts, setExcludedTexts] = useState('');
   const [totalParsed, setTotalParsed] = useState(0);
   const [mediaFiles, setMediaFiles] = useState<Map<string, Blob>>(new Map());
+  const [infoDialogOpen, setInfoDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleFileSelect = async (file: File) => {
@@ -106,7 +116,69 @@ const Index = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-whatsapp-light mb-4">
             <MessageSquare className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-4xl font-bold mb-3">WhatsApp Chat Parser</h1>
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <h1 className="text-4xl font-bold">WhatsApp Chat Parser</h1>
+            <Dialog open={infoDialogOpen} onOpenChange={setInfoDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" className="rounded-full">
+                  <Info className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>How to Use WhatsApp Chat Parser</DialogTitle>
+                  <DialogDescription>
+                    Follow these steps to parse and export your WhatsApp chats with media files
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6 text-sm">
+                  <div>
+                    <h3 className="font-semibold text-base mb-2">Step 1: Export WhatsApp Chat</h3>
+                    <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                      <li>Open WhatsApp and go to the chat you want to export</li>
+                      <li>Tap the three dots (⋮) menu → More → Export chat</li>
+                      <li><strong>Important:</strong> Select "Include Media" to export images, videos, and audio</li>
+                      <li>Save the .zip file to your device</li>
+                    </ol>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold text-base mb-2">Step 2: Configure Filters (Optional)</h3>
+                    <p className="text-muted-foreground mb-2">Before uploading, you can exclude specific messages:</p>
+                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      <li><strong>Exclude senders:</strong> Enter names/numbers separated by commas (e.g., "System, +1 234 5678")</li>
+                      <li><strong>Exclude text:</strong> Filter out messages containing specific phrases (e.g., "joined using a group link")</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold text-base mb-2">Step 3: Upload and Process</h3>
+                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      <li>Click the upload area or drag & drop your .zip or .txt file</li>
+                      <li>The app will automatically parse messages and extract media files</li>
+                      <li>View message statistics, sender breakdown, and media previews</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold text-base mb-2">Step 4: Preview and Export</h3>
+                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      <li>Preview all messages with thumbnail previews of images and videos</li>
+                      <li>Click "Export as TXT" or "Export as JSON" to download</li>
+                      <li>Each message will be saved in its own folder with associated media files</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="p-4 bg-muted rounded-lg">
+                    <h3 className="font-semibold text-base mb-2">🔒 Privacy & Security</h3>
+                    <p className="text-muted-foreground">
+                      All processing happens locally in your browser. Your chats and media files never leave your device or get uploaded to any server.
+                    </p>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Upload your WhatsApp chat export and split messages into individual files. 
             Fast, secure, and completely private - all processing happens in your browser.
