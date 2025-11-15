@@ -34,7 +34,14 @@ export function MessagePreview({ messages }: MessagePreviewProps) {
                   <TableCell className="font-medium">{msg.date}</TableCell>
                   <TableCell>{msg.time}</TableCell>
                   <TableCell className="font-semibold">{msg.sender}</TableCell>
-                  <TableCell className="max-w-md truncate">{msg.message}</TableCell>
+                  <TableCell className="max-w-md">
+                    <div className="truncate">{msg.message}</div>
+                    {msg.mediaFiles && msg.mediaFiles.length > 0 && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        📎 {msg.mediaFiles.length} media file{msg.mediaFiles.length > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
