@@ -159,7 +159,7 @@ const Index = () => {
 
         {messages.length > 0 && (
           <>
-            <MessagePreview messages={messages} />
+            <MessagePreview messages={messages} mediaFiles={mediaFiles} />
             <ExportControls onExport={handleExport} disabled={messages.length === 0} />
           </>
         )}
