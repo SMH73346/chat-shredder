@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { MessageSquare, Info } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
 import { MessagePreview } from '@/components/MessagePreview';
 import { MessageStats } from '@/components/MessageStats';
 import { StatisticsDashboard } from '@/components/StatisticsDashboard';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { ExportControls } from '@/components/ExportControls';
 import { processUploadedFile, exportMessages } from '@/lib/fileProcessor';
 import { parseWhatsAppChat, getMessageStats, ParsedMessage } from '@/lib/whatsappParser';
@@ -17,6 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { startOfDay, endOfDay } from 'date-fns';
 
 const Index = () => {
   const [messages, setMessages] = useState<ParsedMessage[]>([]);
@@ -26,6 +28,8 @@ const Index = () => {
   const [totalParsed, setTotalParsed] = useState(0);
   const [mediaFiles, setMediaFiles] = useState<Map<string, Blob>>(new Map());
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
+  const [dateRangeStart, setDateRangeStart] = useState<Date | null>(null);
+  const [dateRangeEnd, setDateRangeEnd] = useState<Date | null>(null);
   const { toast } = useToast();
 
   const handleFileSelect = async (file: File) => {
@@ -93,11 +97,12 @@ const Index = () => {
         description: 'Creating your download package with media files',
       });
 
-      await exportMessages(messages, format, mediaFiles);
+      // Export filtered messages
+      await exportMessages(filteredMessages, format, mediaFiles);
 
       toast({
         title: 'Export complete!',
-        description: 'Your messages and media have been downloaded',
+        description: `Exported ${filteredMessages.length} messages with media files`,
       });
     } catch (error) {
       toast({
@@ -108,7 +113,33 @@ const Index = () => {
     }
   };
 
-  const stats = messages.length > 0 ? getMessageStats(messages, totalParsed) : null;
+  const handleDateRangeChange = (start: Date | null, end: Date | null) => {
+    setDateRangeStart(start);
+    setDateRangeEnd(end);
+  };
+
+  // Filter messages by date range
+  const filteredMessages = useMemo(() => {
+    if (!dateRangeStart && !dateRangeEnd) {
+      return messages;
+    }
+
+    return messages.filter((msg) => {
+      const messageDate = new Date(msg.timestamp);
+      
+      if (dateRangeStart && dateRangeEnd) {
+        return messageDate >= dateRangeStart && messageDate <= dateRangeEnd;
+      } else if (dateRangeStart) {
+        return messageDate >= dateRangeStart;
+      } else if (dateRangeEnd) {
+        return messageDate <= dateRangeEnd;
+      }
+      
+      return true;
+    });
+  }, [messages, dateRangeStart, dateRangeEnd]);
+
+  const stats = filteredMessages.length > 0 ? getMessageStats(filteredMessages, totalParsed) : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -221,6 +252,13 @@ const Index = () => {
 
         <FileUpload onFileSelect={handleFileSelect} isProcessing={isProcessing} />
 
+        {messages.length > 0 && (
+          <DateRangeFilter 
+            onDateRangeChange={handleDateRangeChange}
+            disabled={isProcessing}
+          />
+        )}
+
         {stats && (
           <MessageStats
             totalMessages={stats.totalMessages}
@@ -230,12 +268,20 @@ const Index = () => {
           />
         )}
 
-        {messages.length > 0 && (
+        {filteredMessages.length > 0 && (
           <>
-            <StatisticsDashboard messages={messages} />
-            <MessagePreview messages={messages} mediaFiles={mediaFiles} />
-            <ExportControls onExport={handleExport} disabled={messages.length === 0} />
+            <StatisticsDashboard messages={filteredMessages} />
+            <MessagePreview messages={filteredMessages} mediaFiles={mediaFiles} />
+            <ExportControls onExport={handleExport} disabled={filteredMessages.length === 0} />
           </>
+        )}
+
+        {messages.length > 0 && filteredMessages.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              No messages found in the selected date range. Try adjusting your filters.
+            </p>
+          </div>
         )}
       </div>
     </div>
