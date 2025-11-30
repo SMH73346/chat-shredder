@@ -3,6 +3,7 @@ import { MessageSquare, Info } from 'lucide-react';
 import { FileUpload } from '@/components/FileUpload';
 import { MessagePreview } from '@/components/MessagePreview';
 import { MessageStats } from '@/components/MessageStats';
+import { StatisticsDashboard } from '@/components/StatisticsDashboard';
 import { ExportControls } from '@/components/ExportControls';
 import { processUploadedFile, exportMessages } from '@/lib/fileProcessor';
 import { parseWhatsAppChat, getMessageStats, ParsedMessage } from '@/lib/whatsappParser';
@@ -231,6 +232,7 @@ const Index = () => {
 
         {messages.length > 0 && (
           <>
+            <StatisticsDashboard messages={messages} />
             <MessagePreview messages={messages} mediaFiles={mediaFiles} />
             <ExportControls onExport={handleExport} disabled={messages.length === 0} />
           </>
